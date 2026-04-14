@@ -57,7 +57,7 @@ jobs:
 
       # 8. Tests de mutation (PIT) - Étape 7/7 du TP
       - name: Run Mutation Tests (PIT)
-        run: ./gradlew pitest
+        run: ./gradlew pitest --continue
 
       # 9. Sauvegarder le rapport PIT comme artefact
       - name: Upload PIT Report
@@ -65,4 +65,4 @@ jobs:
         if: always()
         with:
           name: pit-mutation-report
-          path: build/reports/pitest/
+          path: build/reports/pitest/**/*

@@ -56,8 +56,10 @@ tasks.withType<Test> {
 
 // Configuration PIT (Étape 7/7)
 pitest {
-	targetClasses.set(listOf("livres.domain.*")) // On teste ton code métier
-	testPlugin.set("junit5") // PIT utilise le moteur JUnit 5 pour Kotest
+	targetClasses.set(listOf("livres.domain.*"))
+	testPlugin.set("junit5")
 	outputFormats.set(listOf("XML", "HTML"))
 	timestampedReports.set(false)
+	mutationThreshold.set(0)
+	coverageThreshold.set(0)
 }
