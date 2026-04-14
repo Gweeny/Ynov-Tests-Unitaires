@@ -10,7 +10,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    # Droits nécessaires pour écrire les rapports dans le repo
     permissions:
       contents: read
       issues: write
@@ -41,7 +40,7 @@ jobs:
       - name: Generate JaCoCo Report
         run: ./gradlew jacocoTestReport
 
-      # 6. Publication de la couverture (Le plugin attendu)
+      # 6. Publication de la couverture
       - name: Log Code Coverage
         uses: madrapps/jacoco-report@v1.7.1
         with:
@@ -55,3 +54,15 @@ jobs:
         if: always()
         with:
           files: "**/build/test-results/**/*.xml"
+
+      # 8. Tests de mutation (PIT) - Étape 7/7 du TP
+      - name: Run Mutation Tests (PIT)
+        run: ./gradlew pitest
+
+      # 9. Sauvegarder le rapport PIT comme artefact
+      - name: Upload PIT Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pit-mutation-report
+          path: build/reports/pitest/
