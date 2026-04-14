@@ -3,8 +3,16 @@ plugins {
 	kotlin("plugin.spring") version "2.2.21"
 	id("org.springframework.boot") version "4.0.5"
 	id("io.spring.dependency-management") version "1.1.7"
+	jacoco
 }
 
+tasks.jacocoTestReport {
+	dependsOn(tasks.test) // Le rapport est généré après les tests
+	reports {
+		xml.required.set(true) // Indispensable pour GitHub Actions
+		html.required.set(true)
+	}
+}
 group = "com.example"
 version = "0.0.1-SNAPSHOT"
 
@@ -40,3 +48,5 @@ kotlin {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+

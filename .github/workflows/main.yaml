@@ -10,11 +10,18 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    # Autorisations nécessaires pour publier les résultats et le rapport JaCoCo
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      checks: write
+
     steps:
       # 1. Récupérer le code du dépôt
       - uses: actions/checkout@v4
 
-      # 2. Installer Java 21 (comme dans ton build.gradle.kts)
+      # 2. Installer Java 21
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -30,9 +37,22 @@ jobs:
       - name: Build and Test with Gradle
         run: ./gradlew build
 
-      # 5. Publier les résultats des tests (Plugin demandé dans le TP)
+      # 5. Générer le rapport de couverture JaCoCo
+      - name: Generate JaCoCo Report
+        run: ./gradlew jacocoTestReport
+
+      # 6. Publier le rapport de couverture dans le PR / Pipeline
+      - name: Log Code Coverage
+        uses: madrapps/jacoco-report@v1.7.1
+        with:
+          paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 80
+          min-coverage-changed-files: 80
+
+      # 7. Publier les résultats des tests (Plugin demandé)
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always() # On publie même si les tests échouent pour voir pourquoi
+        if: always() # Toujours exécuter pour voir les erreurs si les tests échouent
         with:
           files: "**/build/test-results/**/*.xml"
