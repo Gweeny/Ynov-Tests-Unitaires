@@ -17,10 +17,8 @@ jobs:
       checks: write
 
     steps:
-      # 1. Récupérer le code
       - uses: actions/checkout@v4
 
-      # 2. Installer Java 21
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -28,47 +26,31 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # 3. Droits d'exécution
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 4. Compilation seule (On vérifie que le code compile)
-      - name: Build with Gradle
-        run: ./gradlew assemble
+      # ON REGROUPE TOUT ICI : Plus rapide, moins de RAM, pas de crash de Daemon
+      - name: Build, Test and Quality
+        run: ./gradlew clean build jacocoTestReport pitest --no-daemon --continue
 
-      # 5. Exécution des tests avec Kotest
-      # On ajoute "|| true" pour que le pipeline ne s'arrête pas si le moteur JUnit Jupiter
-      # fait une erreur de découverte (bug Gradle 9), permettant ainsi aux rapports de se générer.
-      - name: Run Tests
-        run: ./gradlew test --continue || echo "Tests failed or Discovery issue, continuing to reports..."
-
-      # 6. Génération des rapports (JaCoCo + PIT)
-      - name: Generate Quality Reports
-        if: always()
-        run: |
-          ./gradlew jacocoTestReport || echo "JaCoCo report failed"
-          ./gradlew pitest || echo "PITest failed"
-
-      # 7. Publication de la couverture JaCoCo
       - name: Log Code Coverage
         if: always()
         uses: madrapps/jacoco-report@v1.7.1
         with:
           paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 0 # On met 0 pour l'instant pour valider le pipeline
+          min-coverage-overall: 0
 
-      # 8. Publication des résultats JUnit (Visualisation sur GitHub)
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
           files: "**/build/test-results/**/*.xml"
 
-      # 9. Sauvegarder le rapport PIT comme artefact (Le livrable 7/7)
       - name: Upload PIT Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pit-mutation-report
           path: build/reports/pitest/**/*
+          if-no-files-found: warn

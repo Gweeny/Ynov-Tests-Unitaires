@@ -66,13 +66,19 @@ pitest {
 	targetClasses.set(listOf("livres.domain.*"))
 	targetTests.set(listOf("livres.domain.*"))
 
-	// Pour Java 21+
 	jvmArgs.set(listOf(
 		"-Djunit.jupiter.extensions.autodetection.enabled=true",
 		"--add-opens", "java.base/java.lang=ALL-UNNAMED"
 	))
 
+	// FORCE le processus à être léger pour GitHub
+	threads.set(1)
 	useClasspathFile.set(true)
-	timestampedReports.set(false)
+
+	// Évite que PIT ne fasse crash le build s'il ne trouve pas de mutants
+	// sur une petite modif (sécurité pour la CI)
+	failWhenNoMutations.set(false)
+
 	outputFormats.set(listOf("HTML", "XML"))
+	timestampedReports.set(false)
 }
