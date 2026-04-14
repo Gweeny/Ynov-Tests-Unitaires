@@ -42,6 +42,8 @@ dependencies {
 	// FORCE le launcher pour Gradle 9
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+
+	pitest("org.pitest:pitest-junit5-plugin:1.2.1")
 }
 // --- Configuration Kotlin ---
 kotlin {
@@ -76,17 +78,20 @@ tasks.jacocoTestReport {
 
 // --- Étape 7/7 : Tests de mutation (PITest) ---
 pitest {
-	// On cible le package racine de ton domaine
 	targetClasses.set(listOf("livres.domain.*"))
+	targetTests.set(listOf("livres.domain.*"))
 
-	// On aide PIT à trouver les tests au bon endroit
-	targetTests.set(listOf("livres.domain.usecase.*"))
+	jvmArgs.set(listOf(
+		"-Djunit.jupiter.extensions.autodetection.enabled=true",
+		// Option indispensable pour Java 21+ afin d'autoriser la réflexion profonde
+		"--add-opens", "java.base/java.lang=ALL-UNNAMED",
+		"-XX:+AllowRedefinitionToAddDeleteMethods"
+	))
 
-	testPlugin.set("junit5")
+	useClasspathFile.set(true)
+	threads.set(1) // Garder 1 thread aide à stabiliser sur Ubuntu
+
 	outputFormats.set(listOf("HTML", "XML"))
-	pitestVersion.set("1.16.0")
 	timestampedReports.set(false)
-
-	// Force l'activation du moteur Kotest pour PIT
-	jvmArgs.set(listOf("-Djunit.jupiter.extensions.autodetection.enabled=true"))
+	mutationThreshold.set(0)
 }
