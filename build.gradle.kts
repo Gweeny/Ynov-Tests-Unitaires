@@ -1,13 +1,10 @@
 plugins {
-	// --- Framework & Language ---
-	kotlin("jvm") version "2.2.21"
-	kotlin("plugin.spring") version "2.2.21"
-	id("org.springframework.boot") version "4.0.5"
-	id("io.spring.dependency-management") version "1.1.7"
-
-	// --- Quality & Tests (Étape 6 & 7) ---
+	kotlin("jvm") version "1.9.22" // Version stable
+	kotlin("plugin.spring") version "1.9.22"
+	id("org.springframework.boot") version "3.2.4" // Version stable réelle
+	id("io.spring.dependency-management") version "1.1.4"
 	jacoco
-	id("info.solidsoft.pitest") version "1.19.0"
+	id("info.solidsoft.pitest") version "1.15.0" // Version très stable pour PIT
 }
 
 group = "com.example"
@@ -43,7 +40,7 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
 
-	pitest("org.pitest:pitest-junit5-plugin:1.2.1")
+	pitest("org.pitest:pitest-junit5-plugin:1.2.0")
 }
 // --- Configuration Kotlin ---
 kotlin {
