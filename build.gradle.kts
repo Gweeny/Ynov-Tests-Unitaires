@@ -1,14 +1,9 @@
 plugins {
-	// On monte d'un cran pour stabiliser avec Gradle 9
-	kotlin("jvm") version "2.0.0"
-	kotlin("plugin.spring") version "2.0.0"
-
-	// Spring Boot 3.3.0 est plus à l'aise avec Gradle 9
+	kotlin("jvm") version "2.1.10"
+	kotlin("plugin.spring") version "2.1.10"
 	id("org.springframework.boot") version "3.3.0"
 	id("io.spring.dependency-management") version "1.1.5"
-
 	jacoco
-	// On reste sur la dernière version de PIT
 	id("info.solidsoft.pitest") version "1.19.0"
 }
 
@@ -21,6 +16,18 @@ java {
 	}
 }
 
+// --- CONFIGURATION MANUELLE DU DOSSIER testIntegration ---
+sourceSets {
+	create("testIntegration") {
+		compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+		runtimeClasspath += sourceSets.main.get().output + sourceSets.test.get().output
+	}
+}
+
+val testIntegrationImplementation by configurations.getting {
+	extendsFrom(configurations.testImplementation.get())
+}
+
 repositories {
 	mavenCentral()
 }
@@ -28,24 +35,47 @@ repositories {
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-
+	implementation("org.springframework.boot:spring-boot-starter-web")
+	// Tests Unitaires
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
 	testImplementation("io.kotest:kotest-assertions-core:5.9.1")
 	testImplementation("io.kotest:kotest-property:5.9.1")
 	testImplementation("io.mockk:mockk:1.13.10")
-
-	// Bridge requis pour Gradle 9
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-	// Plugin PIT pour JUnit 5
-	pitest("org.pitest:pitest-junit5-plugin:1.2.1")
+	implementation("org.springframework.boot:spring-boot-starter-jdbc")
+	implementation("org.postgresql:postgresql")
+
+	implementation("org.liquibase:liquibase-core")
+
+	testIntegrationImplementation("org.testcontainers:postgresql:1.19.1")
+	testIntegrationImplementation("org.testcontainers:testcontainers:1.19.1")
+	testIntegrationImplementation("io.kotest.extensions:kotest-extensions-testcontainers:2.0.2")
+
+// Dépendances spécifiques Intégration (On complète selon ton cours)
+	"testIntegrationImplementation"("com.ninja-squad:springmockk:4.0.2")
+	"testIntegrationImplementation"("io.kotest.extensions:kotest-extensions-spring:1.3.0")
+
+	// Ajout du starter-test avec l'exclusion demandée par le cours
+	"testIntegrationImplementation"("org.springframework.boot:spring-boot-starter-test") {
+		exclude(module = "mockito-core")
+	}
 }
 
-// Configuration simplifiée pour Gradle 9
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-	kotlinOptions {
-		jvmTarget = "21"
+// --- CRÉATION DE LA TÂCHE DE TEST ---
+val testIntegration = tasks.register<Test>("testIntegration") {
+	description = "Lance les tests d'intégration."
+	group = "verification"
+	testClassesDirs = sourceSets["testIntegration"].output.classesDirs
+	classpath = sourceSets["testIntegration"].runtimeClasspath
+	shouldRunAfter(tasks.test)
+	useJUnitPlatform()
+}
+
+kotlin {
+	compilerOptions {
+		jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
 	}
 }
 
@@ -65,20 +95,11 @@ tasks.jacocoTestReport {
 pitest {
 	targetClasses.set(listOf("livres.domain.*"))
 	targetTests.set(listOf("livres.domain.*"))
-
 	jvmArgs.set(listOf(
 		"-Djunit.jupiter.extensions.autodetection.enabled=true",
 		"--add-opens", "java.base/java.lang=ALL-UNNAMED"
 	))
-
-	// FORCE le processus à être léger pour GitHub
-	threads.set(1)
 	useClasspathFile.set(true)
-
-	// Évite que PIT ne fasse crash le build s'il ne trouve pas de mutants
-	// sur une petite modif (sécurité pour la CI)
-	failWhenNoMutations.set(false)
-
-	outputFormats.set(listOf("HTML", "XML"))
 	timestampedReports.set(false)
+	outputFormats.set(listOf("HTML", "XML"))
 }
