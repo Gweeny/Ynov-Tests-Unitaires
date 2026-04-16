@@ -41,26 +41,22 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # 1. On lance notre linter personnalisé (qui évite les conflits de version)
+      # Étape 1 : Linter (Si ça rate ici, on ne lance pas le reste pour économiser du temps)
       - name: Run Linter (Detekt)
         run: ./gradlew detektCheck
 
-      # 2. On lance les tests d'architecture (ArchUnit)
-      - name: Run Architecture Tests
-        run: ./gradlew testArchitecture
+      # Étape 2 : On lance les tests (Architecture + Unit + Integration + Component)
+      # On regroupe tout ici avec --continue pour que Gradle tente de tout lancer
+      # même si une suite de tests échoue.
+      - name: Run All Tests
+        run: ./gradlew testArchitecture test testIntegration testComponent --continue
 
-      # 3. On lance tous les tests fonctionnels (Unit, Integration, Component)
-      # On garde --continue pour avoir le rapport complet même en cas d'échec
-      - name: Run All Functional Tests
-        run: ./gradlew test testIntegration testComponent --continue
-
-      # 4. Publication du tableau de résultats (Unit + Integration + Component + Architecture)
+      # Étape 3 : Publication du tableau de résultats
+      # On utilise un pattern plus global pour ramasser tous les rapports XML générés
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          files: |
-            **/build/test-results/test/*.xml
-            **/build/test-results/testIntegration/*.xml
-            **/build/test-results/testComponent/*.xml
-            **/build/test-results/testArchitecture/*.xml
+          files: "**/build/test-results/**/*.xml"
+          check_name: "📊 Rapport détaillé des Tests"
+          comment_title: "Bilan des tests (Unit, Intégration, Architecture, Composants)"

@@ -17,7 +17,7 @@ java {
 	toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
 }
 
-// --- 1. GESTION DES SOURCES & HÉRITAGE DES CONFIGURATIONS ---
+// --- 1. GESTION DES SOURCES ---
 sourceSets {
 	create("testIntegration") {
 		compileClasspath += sourceSets.main.get().output + sourceSets.test.get().output
@@ -33,18 +33,13 @@ sourceSets {
 	}
 }
 
-// CETTE PARTIE EST CRUCIALE POUR GITHUB ACTIONS :
-// On dit à Gradle que nos nouveaux types de tests héritent des dépendances de 'test'
+// Configuration des héritages pour éviter les "Unresolved reference" sur GitHub Actions
 configurations {
 	val testImplementation = testImplementation.get()
 	val testRuntimeOnly = testRuntimeOnly.get()
 
 	getByName("testIntegrationImplementation") { extendsFrom(testImplementation) }
-	getByName("testIntegrationRuntimeOnly") { extendsFrom(testRuntimeOnly) }
-
 	getByName("testComponentImplementation") { extendsFrom(testImplementation) }
-	getByName("testComponentRuntimeOnly") { extendsFrom(testRuntimeOnly) }
-
 	getByName("testArchitectureImplementation") { extendsFrom(testImplementation) }
 }
 
@@ -61,16 +56,17 @@ dependencies {
 	implementation("org.postgresql:postgresql")
 	implementation("org.liquibase:liquibase-core")
 
-	// --- TOUS LES TESTS (On utilise une liste pour ne rien oublier) ---
+	// --- BASE DE TESTS COMMUNE (Appliquée à toutes les sourceSets) ---
 	val testLib = listOf(
 		"org.springframework.boot:spring-boot-starter-test",
 		"io.kotest:kotest-runner-junit5:5.9.1",
 		"io.kotest:kotest-assertions-core:5.9.1",
+		"io.kotest:kotest-property:5.9.1",
 		"io.kotest.extensions:kotest-extensions-spring:1.1.3",
-		"io.mockk:mockk:1.13.10"
+		"io.mockk:mockk:1.13.10",
+		"com.ninja-squad:springmockk:4.0.2"
 	)
 
-	// On applique ces libs à TOUTES les sources de test
 	testLib.forEach {
 		testImplementation(it)
 		"testIntegrationImplementation"(it)
@@ -78,18 +74,29 @@ dependencies {
 		"testArchitectureImplementation"(it)
 	}
 
-	// --- SPECIFIQUES ---
+	// --- 1. TESTS D'INTÉGRATION (Spécifique) ---
 	"testIntegrationImplementation"("org.testcontainers:postgresql:1.19.1")
-	"testIntegrationImplementation"("com.ninja-squad:springmockk:4.0.2")
+
+	// --- 2. TESTS DE COMPOSANTS (Cucumber + Fix Testcontainers) ---
+	// Cette ligne corrige l'erreur "Unresolved reference testcontainers" dans src/testComponent
+	"testComponentImplementation"("org.testcontainers:postgresql:1.19.1")
 
 	val cucumberVersion = "7.14.0"
 	"testComponentImplementation"("io.cucumber:cucumber-java:$cucumberVersion")
 	"testComponentImplementation"("io.cucumber:cucumber-spring:$cucumberVersion")
 	"testComponentImplementation"("io.cucumber:cucumber-junit-platform-engine:$cucumberVersion")
+	"testComponentImplementation"("org.junit.platform:junit-platform-suite:1.10.0")
 	"testComponentImplementation"("io.rest-assured:rest-assured:5.3.2")
+	"testComponentImplementation"("io.rest-assured:kotlin-extensions:5.3.2")
 
+	// --- 3. TESTS D'ARCHITECTURE ---
 	"testArchitectureImplementation"("com.tngtech.archunit:archunit-junit5:1.0.1")
+
+	// --- 4. QUALITÉ ---
+	detekt("io.gitlab.arturbosch.detekt:detekt-cli:1.23.7")
+	detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.7")
 }
+
 // --- 3. TÂCHES DE TEST ---
 tasks.withType<Test> {
 	useJUnitPlatform()
@@ -113,7 +120,7 @@ val testArchitecture = tasks.register<Test>("testArchitecture") {
 	classpath = sourceSets["testArchitecture"].runtimeClasspath
 }
 
-// --- 4. QUALITÉ & DETEKT (MODE CLI) ---
+// --- 4. QUALITÉ & DETEKT (MODE CLI ISOLÉ) ---
 val detektCli by configurations.creating
 dependencies {
 	detektCli("io.gitlab.arturbosch.detekt:detekt-cli:1.23.7")
@@ -126,13 +133,20 @@ tasks.register<JavaExec>("detektCheck") {
 	group = "verification"
 	mainClass.set("io.gitlab.arturbosch.detekt.cli.Main")
 	classpath = detektCli
-	args("--input", projectDir.absolutePath, "--config", file("config/detekt.yml").absolutePath, "--report", "html:${buildDir}/reports/detekt/detekt.html")
+	args(
+		"--input", projectDir.absolutePath,
+		"--config", file("config/detekt.yml").absolutePath,
+		"--report", "html:${layout.buildDirectory.get().asFile}/reports/detekt/detekt.html"
+	)
 }
 
-// --- 5. RAPPORTS ---
+// --- 5. RAPPORTS & COUVERTURE ---
 tasks.jacocoTestReport {
 	dependsOn(tasks.test, testIntegration, testComponent)
-	reports { html.required.set(true) }
+	reports {
+		html.required.set(true)
+		xml.required.set(true)
+	}
 }
 
 pitest {
