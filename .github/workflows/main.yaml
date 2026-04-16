@@ -4,6 +4,13 @@ on:
   push:
     branches: [ "main" ]
 
+# C'EST ICI QU'ON DONNE LE DROIT D'ÉCRIRE LE TABLEAU
+permissions:
+  contents: read
+  issues: write
+  checks: write
+  pull-requests: write
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -35,14 +42,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build and Run All Tests
-        run: ./gradlew clean test testIntegration testComponent
+      # On lance les tests (même si l'un échoue, on continue pour voir le tableau)
+      - name: Run All Tests
+        run: ./gradlew clean test testIntegration testComponent --continue
 
-      - name: Generate JaCoCo Report
-        run: ./gradlew jacocoTestReport
-
-      - name: Upload JaCoCo Report
-        uses: actions/upload-artifact@v4
+      # C'EST CETTE ÉTAPE QUI RECRÉE LE TABLEAU QUE TU RECHERCHES
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always() # S'exécute même si les tests échouent
         with:
-          name: jacoco-report
-          path: build/reports/jacoco/test/html/
+          files: "**/build/test-results/**/*.xml"
