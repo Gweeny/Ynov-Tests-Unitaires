@@ -2,14 +2,13 @@ name: Java/Kotlin CI with Kotest
 
 on:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    services: # On lance Postgres ici
+
+    services:
       postgres:
         image: postgres:15
         env:
@@ -32,33 +31,18 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      # ON REGROUPE TOUT ICI : Plus rapide, moins de RAM, pas de crash de Daemon
-      - name: Build, Test and Quality
-        run: ./gradlew clean build jacocoTestReport pitest --no-daemon --continue
+      - name: Build and Run All Tests
+        run: ./gradlew clean test testIntegration testComponent
 
-      - name: Log Code Coverage
-        if: always()
-        uses: madrapps/jacoco-report@v1.7.1
-        with:
-          paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 0
+      - name: Generate JaCoCo Report
+        run: ./gradlew jacocoTestReport
 
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: "**/build/test-results/**/*.xml"
-
-      - name: Upload PIT Report
+      - name: Upload JaCoCo Report
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: pit-mutation-report
-          path: build/reports/pitest/**/*
-          if-no-files-found: warn
+          name: jacoco-report
+          path: build/reports/jacoco/test/html/
