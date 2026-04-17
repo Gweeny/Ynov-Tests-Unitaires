@@ -2,6 +2,7 @@ package livres.driving.controller
 
 import livres.domain.usecase.GestionLivres
 import livres.driving.dto.BookDTO
+import org.intellij.lang.annotations.Pattern
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
 
@@ -18,5 +19,17 @@ class BookController(private val gestionLivres: GestionLivres) {
     @ResponseStatus(HttpStatus.CREATED)
     fun createBook(@RequestBody book: BookDTO) {
         gestionLivres.ajouterLivre(book.toDomain())
+    }
+
+    @PatchMapping("/{titre}/reserve")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun reserveBook(@PathVariable titre: String) {
+        gestionLivres.reserverLivre(titre)
+    }
+
+    @ExceptionHandler(IllegalArgumentException::class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    fun handleBadRequest(e: IllegalArgumentException): String {
+        return e.message ?: "Mauvaise requête"
     }
 }

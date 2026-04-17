@@ -30,7 +30,7 @@ class BookControllerTest : DescribeSpec() {
 
     init {
         it("GET /books doit retourner la liste en JSON") {
-            val livreDomaine = Livres("Le Hobbit", "Tolkien")
+            val livreDomaine = Livres("Le Hobbit", "Tolkien", estReserve = false)
             every { gestionLivres.listerLivresTries() } returns listOf(livreDomaine)
 
             mockMvc.perform(get("/books"))
@@ -40,7 +40,7 @@ class BookControllerTest : DescribeSpec() {
         }
 
         it("POST /books doit créer un livre et retourner 201") {
-            val json = """ { "titre": "1984", "auteur": "Orwell" } """
+            val json = """ { "titre": "1984", "auteur": "Orwell", "estReserve": false } """
             every { gestionLivres.ajouterLivre(any()) } returns Unit
 
             mockMvc.perform(
@@ -51,6 +51,29 @@ class BookControllerTest : DescribeSpec() {
                 .andExpect(status().isCreated)
 
             verify { gestionLivres.ajouterLivre(any()) }
+        }
+
+        it("PATCH /books/{titre}/reserve doit retourner 204 lors d'un succès") {
+            val titre = "Le Hobbit"
+            every { gestionLivres.reserverLivre(titre) } returns Unit
+            mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/books/$titre/reserve")
+            )
+                .andExpect(status().isNoContent)
+
+            verify { gestionLivres.reserverLivre(titre) }
+        }
+
+        it("PATCH /books/{titre}/reserve doit retourner 400 si le livre est déjà réservé") {
+            val titre = "Le Hobbit"
+
+            every { gestionLivres.reserverLivre(titre) } throws IllegalArgumentException("Le livre est déjà réservé")
+
+            mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/books/$titre/reserve")
+            )
+                .andExpect(status().isBadRequest)
+
         }
     }
 }

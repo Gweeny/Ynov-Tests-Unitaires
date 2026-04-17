@@ -150,6 +150,7 @@ tasks.jacocoTestReport {
 }
 
 pitest {
+	junit5PluginVersion.set("1.2.1")
 	targetClasses.set(listOf("livres.domain.*"))
 	targetTests.set(listOf("livres.domain.*"))
 	outputFormats.set(listOf("HTML", "XML"))

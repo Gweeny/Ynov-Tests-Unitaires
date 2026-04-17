@@ -6,4 +6,7 @@ interface LivreRepository {
     fun sauvegarder(livre: Livres)
 
     fun recupererTout(): List<Livres>
+
+    fun trouverParTitre(titre: String): Livres?
+
 }

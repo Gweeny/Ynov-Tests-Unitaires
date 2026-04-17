@@ -13,13 +13,14 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import org.springframework.http.HttpStatus
 
 @CucumberContextConfiguration
 @SpringBootTest(
     classes = [DemoApplication::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
-class BookStepDefs { // <-- LE NOM DOIT ÊTRE BookStepDefs
+class BookStepDefs {
 
     @LocalServerPort
     private var port: Int = 0
@@ -33,16 +34,20 @@ class BookStepDefs { // <-- LE NOM DOIT ÊTRE BookStepDefs
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails()
     }
 
+    // --- STEPS DE CRÉATION ---
+
     @Given("l'utilisateur crée le livre {string} écrit par {string}")
     fun createBook(titre: String, auteur: String) {
         RestAssured.given()
             .contentType(ContentType.JSON)
-            .body("""{"titre": "$titre", "auteur": "$auteur"}""")
+            .body("""{"titre": "$titre", "auteur": "$auteur", "estReserve": false}""")
             .`when`()
             .post(url("/books"))
             .then()
             .statusCode(201)
     }
+
+    // --- STEPS DE RÉCUPÉRATION ---
 
     @When("l'utilisateur récupère la liste des livres")
     fun getAllBooks() {
@@ -58,13 +63,52 @@ class BookStepDefs { // <-- LE NOM DOIT ÊTRE BookStepDefs
         val expectedTitre = payload[0]["titre"]
         val expectedAuteur = payload[0]["auteur"]
 
-        val books: List<Map<String, String>> = lastResponse.extract().body().jsonPath().getList("")
-
-        // On cherche manuellement dans la liste pour éviter les erreurs de syntaxe JsonPath
+        val books: List<Map<String, Any>> = lastResponse.extract().body().jsonPath().getList("")
         val livreTrouve = books.find { it["titre"] == expectedTitre }
 
         livreTrouve shouldNotBe null
         livreTrouve!!["titre"] shouldBe expectedTitre
         livreTrouve["auteur"] shouldBe expectedAuteur
+    }
+
+    // --- STEPS DE RÉSERVATION (LA NOUVELLE FEATURE) ---
+
+    @Given("que le livre {string} écrit par {string} existe")
+    fun leLivreExiste(titre: String, auteur: String) {
+        // On s'assure que le livre est là avant de tester le PATCH
+        RestAssured.given()
+            .contentType(ContentType.JSON)
+            .body("""{"titre": "$titre", "auteur": "$auteur", "estReserve": false}""")
+            .`when`()
+            .post(url("/books"))
+            .then()
+            .statusCode(201)
+    }
+
+    @When("l'utilisateur réserve le livre {string}")
+    fun reserverLivre(titre: String) {
+        lastResponse = RestAssured.given()
+            .`when`()
+            .patch(url("/books/$titre/reserve"))
+            .then()
+    }
+
+    @Then("la réservation est confirmée")
+    fun confirmationReservation() {
+        // On accepte 200 ou 204 selon ton Controller
+        val status = lastResponse.extract().statusCode()
+        (status == 200 || status == 204) shouldBe true
+    }
+
+    @Then("le livre {string} doit avoir le statut réservé à {string}")
+    fun verifierStatut(titre: String, statutAttendu: String) {
+        val expectedStatus = statutAttendu.toBoolean()
+
+        RestAssured.given()
+            .`when`() // <--- Vérifie bien les deux ` ici
+            .get(url("/books"))
+            .then()
+            .statusCode(200)
+            .body("find { it.titre == '$titre' }.estReserve", org.hamcrest.Matchers.`is`(expectedStatus))
     }
 }
