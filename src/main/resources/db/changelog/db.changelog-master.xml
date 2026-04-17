@@ -6,5 +6,6 @@
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
 
     <include file="db/changelog/changelogs/20260415_initial_schema.xml"/>
+    <include file="db/changelog/changelogs/20260417_add_reserve_column.xml"/>
 
 </databaseChangeLog>
